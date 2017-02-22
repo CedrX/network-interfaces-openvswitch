@@ -1,0 +1,63 @@
+# This file describes the network interfaces available on your system
+# and how to activate them. For more information, see interfaces(5).
+
+source /etc/network/interfaces.d/*
+
+# The loopback network interface
+auto lo
+iface lo inet loopback
+
+#bridge with openvswitch 
+allow-ovs br0
+iface br0 inet dhcp
+  ovs_type OVSBridge
+  ovs_ports eth0
+
+
+allow-br0 eth0
+iface eth0 inet manual
+  ovs_bridge br0
+  ovs_type OVSPort
+
+auto br1
+allow-ovs br1
+ iface br1 inet manual
+ up ip link add br1-to-brout type veth peer name brout-to-br1
+ up ip link set br1-to-brout promisc on up
+ up ovs-vsctl add-port br1 br1-to-brout
+ down ovs-vsctl del-port br1 br1-to-brout
+ down ip link set br1-to-brout promisc off down
+ #address 192.168.2.2
+ #netmask 255.255.255.0
+ #network 192.168.2.0
+ #broadcast 192.168.2.255
+ #post-up /sbin/ethtool -K br0 tx off
+ #post-up /sbin/iptables -t nat -A POSTROUTING -s 192.168.2.0/24 ! -d 192.168.2.0/24 -o br0 -j MASQUERADE
+ #post-up /sbin/iptables -t nat -A POSTROUTING -s 192.168.2.0/24 ! -d 192.168.1.0/24 -o br0 -j MASQUERADE
+ #pre-down /sbin/iptables -t nat -D POSTROUTING -s 192.168.2.0/24 ! -d 192.168.1.0/24 -o br0 -j MASQUERADE
+ #pre-down /sbin/iptables -t nat -D POSTROUTING -s 192.168.2.0/24 ! -d 192.168.2.0/24 -o br0 -j MASQUERADE
+ ovs_type OVSBridge
+
+auto brout
+allow-ovs brout
+  iface brout inet manual
+  up ip link set brout promisc on
+  up ip link set brout-to-br1 promisc on up
+  up ovs-vsctl add-port brout brout-to-br1
+  up ip route add 192.168.2.0/24 dev brout
+  down ip route del 192.168.2.0/24 dev brout
+  down ovs-vsctl del-port brout brout-to-br1
+  down ip link set brout promisc off down
+  down ip link set brout-to-br1 promisc off down
+
+auto eth1
+allow-brout eth1
+iface eth1 inet manual
+  up ip link set dev eth1 promisc on
+  down ip link set dev eth1 promisc off
+  ovs_bridge brout
+  ovs_type OVSPort
+
+# The primary network interface
+#allow-hotplug eth0
+#iface eth0 inet dhcp
